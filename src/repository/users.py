@@ -23,3 +23,25 @@ async def create_user(body: UserSchema, db: AsyncSession):
 async def update_token(user: User, token: str | None, db: AsyncSession):
     user.refresh_token = token
     await db.commit()
+
+
+async def confirmed_email(email: str, db: AsyncSession) -> None:
+    user = await get_user_by_email(email, db)
+    user.confirmed = True
+    await db.commit()
+
+
+async def update_avatar_url(email: str, avatar_url: str | None, db: AsyncSession) -> User:
+    user = await get_user_by_email(email, db)
+    user.avatar = avatar_url
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def update_password(email: str, password: str, db: AsyncSession) -> User:
+    user = await get_user_by_email(email, db)
+    user.password = password
+    await db.commit()
+    await db.refresh(user)
+    return user
