@@ -1,26 +1,25 @@
-from fastapi import APIRouter, HTTPException, Depends, status, Security, BackgroundTasks, Request
+from fastapi import APIRouter, HTTPException, Depends, status, Path, Query, Security
 from fastapi.security import OAuth2PasswordRequestForm, HTTPAuthorizationCredentials, HTTPBearer
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.services.auth import auth_service
-from src.services import email
+
 from src.database.db import get_db
 
 from src.repository import users as users_repo
-from src.schemas.user import UserSchema, TokenSchema, UserResponse, RequestEmail
+from src.schemas.user import UserSchema, TokenSchema, UserResponse
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 get_refresh_token = HTTPBearer()
 
 
 @router.post('/signup', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def signup(body: UserSchema, bt: BackgroundTasks, request: Request, db: AsyncSession = Depends(get_db)):
+async def signup(body: UserSchema, db: AsyncSession = Depends(get_db)):
     new_user = await users_repo.get_user_by_email(email=body.email, db=db)
     if new_user:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Account already exists')
     body.password = auth_service.get_password_hash(body.password)
     new_user = await users_repo.create_user(body=body, db=db)
-    bt.add_task(email.send_email, new_user.email, new_user.username, str(request.base_url))
     return new_user
 
 
@@ -50,36 +49,3 @@ async def refresh_token(credentials: HTTPAuthorizationCredentials = Security(get
     user.refresh_token = refresh_token
     await db.commit()
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
-
-@router.get('/confirmed_email/{token}')
-async def confirmed_email(token: str, db: AsyncSession = Depends(get_db)):
-    email = await auth_service.get_email_from_token(token)
-    user = await users_repo.get_user_by_email(email, db)
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error")
-    if user.confirmed:
-        return {"message": "Your email is already confirmed"}
-    await users_repo.confirmed_email(email, db)
-    return {"message": "Email confirmed"}
-
-@router.post('/request_email')
-async def request_email(body: RequestEmail, background_tasks: BackgroundTasks, request: Request,
-                        db: AsyncSession = Depends(get_db)):
-    user = await users_repo.get_user_by_email(body.email, db)
-
-    if user.confirmed:
-        return {"message": "Your email is already confirmed"}
-    if user:
-        background_tasks.add_task(email.send_email, user.email, user.username, str(request.base_url))
-    return {"message": "Check your email for confirmation."}
-
-@router.post('/password-recovery')
-async def password_recovery(body: RequestEmail, background_tasks: BackgroundTasks, request: Request,
-                            db: AsyncSession = Depends(get_db)):
-    user = await users_repo.get_user_by_email(body.email, db)
-    if not user:
-        return {"message": "email not registered"}
-    #new_password = auth_service.generate_password()
-    background_tasks.add_task(email.send_reset_password_email, user.email, str(request.base_url))
-    await users_repo.update_password(user, auth_service.get_password_hash(new_password), db)
-    return {"message": ""}

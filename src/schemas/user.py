@@ -13,7 +13,6 @@ class UserResponse(BaseModel):
     id: int = 1
     username: str
     email: EmailStr
-    avatar: str | None
     class Config:
         from_attributes = True
 
@@ -22,6 +21,3 @@ class TokenSchema(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
-
-class RequestEmail(BaseModel):
-    email: EmailStr

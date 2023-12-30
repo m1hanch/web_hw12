@@ -1,4 +1,4 @@
-from sqlalchemy import String, Date, Column, Integer, ForeignKey, Boolean
+from sqlalchemy import String, Date, Column, Integer, ForeignKey
 
 from sqlalchemy.orm import DeclarativeBase, relationship
 
@@ -28,6 +28,4 @@ class User(Base):
     email = Column(String(150), index=True, unique=True)
     password = Column(String(255), nullable=False)
     refresh_token = Column(String(250), nullable=True)
-    confirmed = Column(Boolean, default=False, nullable=True)
-    avatar = Column(String(250), nullable=True)
 

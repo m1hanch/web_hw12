@@ -8,7 +8,6 @@ from src.entity.models import User
 from src.repository import contacts as repositories_contacts
 from src.schemas.contact import ContactSchema, ContactResponse
 from src.services.auth import auth_service
-from fastapi_limiter.depends import RateLimiter
 
 router = APIRouter(prefix='/contacts', tags=['contacts'])
 
@@ -65,8 +64,7 @@ async def get_contacts_by_upcoming_birthday(limit: int = Query(10, ge=10, le=500
     return contacts
 
 
-@router.post('/', response_model=ContactResponse, status_code=status.HTTP_201_CREATED,
-             dependencies=[Depends(RateLimiter(times=2, seconds=5))])
+@router.post('/', response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
 async def create_contact(body: ContactSchema, db: AsyncSession = Depends(get_db),
                          user: User = Depends(auth_service.get_current_user)):
     contact = await repositories_contacts.create_contact(body, db, user)
